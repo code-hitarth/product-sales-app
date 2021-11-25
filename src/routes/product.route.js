@@ -1,9 +1,6 @@
 const express = require('express');
-const Product = require('../models/productModel');
-const constants = require('../constant.js');
 const productRoute = express.Router();
-const url = require('url');
-const { createProduct, findProductByTitle, getAllProducts } = require('../controller/product.controller.js')
+const { createProduct, getProductByTitle, getAllProducts } = require('../controller/product.controller.js')
 
 
 

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const orderSchea = mongoose.Schema({
-    product: {
+    productName: {
         type: String,
         required: true,
     },
@@ -13,7 +13,7 @@ const orderSchea = mongoose.Schema({
     date: {
         type: Date,
         trim: true,
-        default: new Date(Date.now()).toLocaleDateString()
+        default: Date.now()
     },
 }, {
     timestamps: true
