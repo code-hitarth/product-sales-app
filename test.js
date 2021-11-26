@@ -30,6 +30,15 @@ const calcPercentage = (a, b) => {
     }
 }
 
-calcPercentage(120, 200)
-calcPercentage(80, 200)
-calcPercentage(150, 200)
+// calcPercentage(120, 200)
+// calcPercentage(80, 200)
+// calcPercentage(150, 200)
+
+
+const newPrice = (price,percent)=>{
+    const updated = price -(price*percent)
+    return updated
+  }
+
+  const updatedPrice = newPrice(200,0.3)
+//   console.log(updatedPrice)
