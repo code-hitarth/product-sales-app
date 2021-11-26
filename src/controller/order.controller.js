@@ -25,7 +25,6 @@ const createOrder = async (req, res) => {
           .send({ message: "Order refused to create" });
       }
     } catch (error) {
-      console.log(error);
       return res.status(constants.WebStatusCode.BADREQUEST).send(error);
     }
   }

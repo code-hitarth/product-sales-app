@@ -1,17 +1,21 @@
-const express = require('express');
+const express = require("express");
 const productRoute = express.Router();
-const { createProduct, getProductByTitle, getAllProducts, mainApi } = require('../controller/product.controller.js')
+const {
+  createProduct,
+  getProductByTitle,
+  getAllProducts,
+  mainApi,
+  updateProduct,
+} = require("../controller/product.controller.js");
 
+productRoute.post("/products", createProduct);
 
+productRoute.get("/products", getAllProducts);
 
+productRoute.get("/products/search/:title", getProductByTitle);
 
-productRoute.post('/products', createProduct)
+productRoute.get("/products/mainapi", mainApi);
 
-productRoute.get('/products', getAllProducts)
+productRoute.get("/products/:id", updateProduct);
 
-productRoute.get('/products/search/:title', getProductByTitle)
-
-productRoute.get('/products/mainapi/:title', mainApi)
-
-
-module.exports = productRoute
+module.exports = productRoute;

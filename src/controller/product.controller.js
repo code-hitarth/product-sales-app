@@ -2,7 +2,6 @@ const Product = require("../models/productModel.js");
 const Order = require("../models/orderModel.js");
 const constants = require("../constant.js");
 const moment = require("moment");
-const momentDate = moment();
 
 const createProduct = async (req, res) => {
   //check if body is valid or not
@@ -51,7 +50,6 @@ const getAllProducts = async (req, res) => {
 };
 
 const getProductByTitle = async (req, res) => {
-  console.log(req.params.title);
   if (!req.params.title) {
     return res
       .status(constants.WebStatusCode.BADREQUEST)
@@ -77,23 +75,11 @@ const getProductByTitle = async (req, res) => {
   }
 };
 
-function getPreviousMonday() {
-  var date = new Date();
-  var day = date.getDay();
-  var prevMonday = new Date();
-  if (date.getDay() == 0) {
-    prevMonday = prevMonday.setDate(date.getDate() - 7);
-  } else {
-    prevMonday = prevMonday.setDate(date.getDate() - (day - 1) - 8);
-  }
 
-  return prevMonday;
-}
-
-function getLastSunday() {
-  var t = new Date();
-  t = t.setDate(t.getDate() - t.getDay());
-  return t;
+function getLastSeven() {
+  const a = Date.now();
+  const prev = moment(a).subtract(7, "days").format("YYYY-MM-DD");
+  return new Date(prev).getTime();
 }
 
 const calcPercentage = (a, b) => {
@@ -105,142 +91,70 @@ const calcPercentage = (a, b) => {
   }
 };
 
-
-const newPrice = (price,percent)=>{
-  const updated = price -(price*percent)
-  return updated
-}
+const newPrice = (price, percent) => {
+  const updated = price - price * percent;
+  return updated;
+};
 
 const mainApi = async (req, res) => {
-
   console.log(req.params.title);
-  
-  if (!req.params.title) {
-  
-    return res
-      .status(constants.WebStatusCode.BADREQUEST)
-      .send({ message: "Please enter product name" });
-  
-    } else {
-  
-      try {
-  
-        const title = req.params.title;
-        const response = await Product.findOne({
-        title: { $regex: `${title}$`, $options: "i" },
+  try {
+    const productList = await Product.find().lean();
+    if (productList) {
+      const finalArr = [];
+      for (let i = 0; i < productList.length; i++) {
+        const lastseven = getLastSeven();
+        const orderList = await Order.find({
+          productId: productList[i]._id,
+          date: {
+            $gte: lastseven,
+            $lte: Date.now(),
+          },
         });
-        
-        if (response) {
-        
-          if(response.price>10&&response.price<1000){
-          const getOrdersByProductId = await Order.find({
-          productId: response._id,
-          });
-        
-          // res.send({ findOrders })
-        console.log(getOrdersByProductId)
-        
-        
-        if (getOrdersByProductId) {
-          const mon = getPreviousMonday();
-          const sun = getLastSunday();
-          let lastWeeksData = await Order.find({
-            date: {
-              $gte: mon,
-              $lte: sun,
-            },
-          }).lean();
-        
-          if (lastWeeksData.length!=0) {
-        
-            lastWeeksData.forEach((x) => (x.date = new Date(x.date)));
-            console.log(lastWeeksData.map((e) => e.quantity));
 
-            const allQuantity = lastWeeksData.map((data) => data.quantity);
+
+        if (orderList) {
+          if (orderList.length) {
+            orderList.forEach((x) => (x.date = new Date(x.date)));
+            
+            const allQuantity = orderList.map((data) => data.quantity);
 
             const lastWeekSales = allQuantity.reduce(
               (acc, curr) => acc + curr,
               0
             );
-              console.log(lastWeekSales)
-        
-              if (lastWeekSales < response.estimatedSalesPerWeek) {
-        
-                const percentageLess = calcPercentage(
+
+            if (lastWeekSales < productList[i].estimatedSalesPerWeek) {
+              const percentageLess = calcPercentage(
                 lastWeekSales,
-                response.estimatedSalesPerWeek
+                productList[i].estimatedSalesPerWeek
               );
-              console.log(percentageLess);
-                console.log(getOrdersByProductId)
-                console.log(response)
-        
-                if (percentageLess > 0 && percentageLess < 10) {
-                const price = response.price
-                const updatePrice = newPrice(price,0.1)
-                // const updatePrice = response.price - response.price * 0.1;
-                console.log(response.price);
-        
-                const final = await Product.findByIdAndUpdate(
-                  { _id: response._id },
-                  { price: updatePrice }
-                );
-        
-                if (final) {
-                  res
-                    .status(constants.WebStatusCode.SUCCESS)
-                    .send({ message: "Product price updated", data: final });
-                } else {
-                  return res.status(constants.WebStatusCode.BADREQUEST).send({
-                    message: "Unable to find proudct and update it",
-                    data: {},
-                  });
-                }
-                } else if (percentageLess >= 10 && percentageLess < 25) {
-                  const price = response.price
-                  const updatePrice = newPrice(price,0.1)
-                  console.log(response.price);
+           
+              let updatePrice;
+              const price = productList[i].price;
+              if (percentageLess > 0 && percentageLess < 10) {
+                updatePrice = newPrice(price, 0.1);
+              } else if (percentageLess >= 10 && percentageLess < 25) {
+                updatePrice = newPrice(price, 0.1);
+              } else if (percentageLess >= 25) {
+                updatePrice = newPrice(price, 0.1);
+              }
 
-                const final = await Product.findByIdAndUpdate(
-                  { _id: response._id },
-                  { price: updatePrice }
-                );
-                
-                if (final) {
-                  res
-                    .status(constants.WebStatusCode.SUCCESS)
-                    .send({ message: "Product price updated", data: final });
-                } else {
-                  return res.status(constants.WebStatusCode.BADREQUEST).send({
-                    message: "Unable to find proudct and update it",
-                    data: {},
-                  });
-                }
-                } else if (percentageLess >= 25) {
-                const price = response.price
-                const updatePrice = newPrice(price,0.1)
-                console.log(updatePrice);
 
-                const final = await Product.findByIdAndUpdate(
-                  { _id: response._id },
-                  { price: updatePrice }
-                );
-                if (final) {
-                  res
-                    .status(constants.WebStatusCode.SUCCESS)
-                    .send({ message: "Product price updated", data: final });
-                } else {
-                  return res.status(constants.WebStatusCode.BADREQUEST).send({
-                    message: "Unable to find proudct and update it",
-                    data: {},
-                  });
-                }
+              //updatingdatabase
+              const final = await Product.findByIdAndUpdate(
+                productList[i]._id,
+                { price: updatePrice.toFixed(2) },
+                { new: true }
+              );
+
+              if (final) {
+                finalArr.push(final);
               }
             } else {
-              return res.status(constants.WebStatusCode.SUCCESS).send({
-                message:
-                  "Your products are up to date! no need to update price",
-                  data:response
-              });
+              console.log(
+                `Your products are up to date! no need to update price ${productList[i].title}`
+              );
             }
           } else {
             return res
@@ -252,22 +166,57 @@ const mainApi = async (req, res) => {
             .status(constants.WebStatusCode.BADREQUEST)
             .send({ message: "No  order data found" });
         }
+      }
+      res
+        .status(constants.WebStatusCode.SUCCESS)
+        .send({ message: "Here are your products", data:finalArr });
+    } else {
+      return res
+        .status(constants.WebStatusCode.BADREQUEST)
+        .send({ message: "No products found", data: {} });
+    }
+  } catch (error) {
+    return res.status(constants.WebStatusCode.BADREQUEST).send(error);
+  }
+};
 
-        // res.send(lastWeeksData)
-      }
-      else{
-        res.status(constants.WebStatusCode.BADREQUEST).send({message:"Price should be in between 10 and 1000"})
-      }
+const updateProduct = async (req, res) => {
+  if (!req.params.id) {
+    return res
+      .status(constants.WebStatusCode.BADREQUEST)
+      .send({ message: "Please enter product id" });
+  } else {
+    try {
+      const _id = req.params.id;
+      const response = await Product.findByIdAndUpdate(
+        { _id },
+        {
+          title: req.body.title,
+          price: req.body.price,
+          estimatedSalesPerWeek: req.body.estimatedSalesPerWeek,
+        },
+        { new: true }
+      );
+
+      if (response) {
+        res
+          .status(constants.WebStatusCode.SUCCESS)
+          .send({ message: "Here is your data", data: response });
       } else {
         return res
           .status(constants.WebStatusCode.BADREQUEST)
-          .send({ message: "No products found" });
+          .send({ message: "No product found" });
       }
     } catch (error) {
-      console.log(error);
       return res.status(constants.WebStatusCode.BADREQUEST).send(error);
     }
   }
 };
 
-module.exports = { createProduct, getProductByTitle, getAllProducts, mainApi };
+module.exports = {
+  createProduct,
+  getProductByTitle,
+  getAllProducts,
+  mainApi,
+  updateProduct,
+};
